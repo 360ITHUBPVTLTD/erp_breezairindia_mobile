@@ -137,13 +137,12 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+ 	"Comment": {
+ 		"after_insert": "mobile_app_360ithub.task_comments.publish_task_comment_event",
+		"on_trash": "mobile_app_360ithub.task_comments.delete_task_comment_event"
+ 	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -203,6 +202,23 @@ app_license = "mit"
 # ----------
 # before_job = ["mobile_app_360ithub.utils.before_job"]
 # after_job = ["mobile_app_360ithub.utils.after_job"]
+
+
+fixtures = [
+    {
+        "doctype": "Custom Field",
+        "filters": [
+            ["dt", "in", ["Task", "Lead", "Branch"]],
+            ["fieldname", "in", [
+                "task_owner", 
+                "custom_owner", "custom_address", 
+                "custom_latitude", "custom_longitude", "custom_radius"
+            ]]
+        ]
+    }
+]
+
+
 
 # User Data Protection
 # --------------------
