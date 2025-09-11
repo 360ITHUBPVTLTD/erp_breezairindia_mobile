@@ -368,7 +368,7 @@
   "in_list_view": 0,
   "in_preview": 0,
   "in_standard_filter": 0,
-  "insert_after": "cb_visit_left",
+  "insert_after": "repeat_this_event",
   "is_system_generated": 0,
   "is_virtual": 0,
   "label": "Actual Visit Date & Time",

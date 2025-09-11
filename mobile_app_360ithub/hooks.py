@@ -220,7 +220,7 @@ fixtures = [
                     # Event
                     "custom_actual_visit_date_time", "custom_location",
                     "custom_actual_checked_out_at", "custom_checkout_notes",
-                    "custom_visit_address", "custom_allocated_to",
+                    "custom_visit_address", "custom_allocated_to"
                     # Customer
                     "custom_address"
                 ]
