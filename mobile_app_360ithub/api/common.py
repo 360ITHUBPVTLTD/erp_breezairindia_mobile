@@ -4,7 +4,8 @@ from frappe.model.db_query import DatabaseQuery
 from frappe.model.utils import is_virtual_doctype
 from frappe.model.base_document import get_controller
 import json
-from frappe.permissions import check_doctype_permission, get_doc_permissions
+
+
 
 @frappe.whitelist()  
 def get_permitted_doctypes(user=None):  
@@ -21,6 +22,11 @@ def get_permitted_doctypes(user=None):
         "can_delete": user_perms.can_delete,  
         # Add other permission types as needed  
     }
+
+
+
+
+
 
 @frappe.whitelist()
 def get_doc_with_filters(doctype, filters=None, fields=None, limit=20, order_by=None, group_by=None, start=0):
@@ -99,28 +105,17 @@ def get_doc_with_filters(doctype, filters=None, fields=None, limit=20, order_by=
     # Filters are now properly formatted for DatabaseQuery
 
     try:
-        # Fetch data
+        # Use the exact same logic as reportview.get_list()
         if is_virtual_doctype(args.doctype):
             controller = get_controller(args.doctype)
             data = controller.get_list(args)
         else:
-            doctype = args.pop('doctype')
+            # Use DatabaseQuery directly like reportview does (uncompressed format)
+            # Pass all args as kwargs except doctype (which is used in constructor)
+            doctype = args.pop('doctype')  # Remove doctype from args
             data = DatabaseQuery(doctype).execute(**args)
 
-        # Role/doctype-level permissions
-        permission_doctype = check_doctype_permission(doctype, "read")
-
-        # If at least one record is returned, check document-level permissions
-        permission_doc = None
-        if data:
-            doc = frappe.get_doc(doctype, data[0].get("name"))
-            permission_doc = get_doc_permissions(doc)
-
-        return {
-            "data": data,
-            "doctype_permission": permission_doctype,
-            "doc_permission": permission_doc
-        }
+        return data
 
     except Exception as e:
         frappe.log_error(f"Error in get_doc_with_filters: {str(e)}")

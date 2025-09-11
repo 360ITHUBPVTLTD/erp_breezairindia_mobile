@@ -203,20 +203,32 @@ doc_events = {
 # before_job = ["mobile_app_360ithub.utils.before_job"]
 # after_job = ["mobile_app_360ithub.utils.after_job"]
 
-
 fixtures = [
     {
         "doctype": "Custom Field",
         "filters": [
-            ["dt", "in", ["Task", "Lead", "Branch"]],
-            ["fieldname", "in", [
-                "task_owner", 
-                "custom_owner", "custom_address", 
-                "custom_latitude", "custom_longitude", "custom_radius"
-            ]]
+            [
+                "fieldname", "in", [
+                    # Task
+                    "task_owner",
+                    # Lead
+                    "custom_address",
+                    # Branch
+                    "custom_latitude", "custom_longitude", "custom_radius",
+                    # Employee Checkin
+                    "custom_custom_lat_long", "custom_hrms_360ithub",
+                    # Event
+                    "custom_actual_visit_date_time", "custom_location",
+                    "custom_actual_checked_out_at", "custom_checkout_notes",
+                    "custom_visit_address", "custom_allocated_to",
+                    # Customer
+                    "custom_address"
+                ]
+            ]
         ]
     }
 ]
+
 
 
 
