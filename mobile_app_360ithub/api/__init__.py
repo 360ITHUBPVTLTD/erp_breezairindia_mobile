@@ -371,63 +371,122 @@ def _get_validated_employee() -> Dict[str, Any]:
 	return employee
 
 
+# def _validate_employee_location(
+# 	latitude: float,
+# 	longitude: float,
+# 	branch_name: str,
+# 	override_radius: Optional[float] = None
+# ) -> None:
+# 	"""Validate employee location against branch coordinates.
+
+# 	Args:
+# 		latitude: Employee latitude
+# 		longitude: Employee longitude
+# 		branch_name: Branch name
+# 		override_radius: Override radius for validation
+
+# 	Raises:
+# 		frappe.ValidationError: If location validation fails
+# 	"""
+# 	try:
+# 		# Get branch location data
+# 		branch_data = frappe.db.get_value(
+# 			"Branch",
+# 			branch_name,
+# 			["latitude", "longitude", "radius"],
+# 			as_dict=True
+# 		)
+
+# 		if not branch_data:
+# 			frappe.throw(_("Branch details not found for: {0}").format(branch_name))
+
+# 		# Validate branch has location data
+# 		if not branch_data.latitude or not branch_data.longitude:
+# 			frappe.throw(
+# 				_("Branch {0} does not have location coordinates configured").format(branch_name)
+# 			)
+
+# 		# Calculate distance
+# 		branch_lat = float(branch_data.latitude)
+# 		branch_lon = float(branch_data.longitude)
+# 		distance = _haversine(branch_lat, branch_lon, latitude, longitude)
+
+# 		# Determine radius to use
+# 		validation_radius = override_radius
+# 		if validation_radius is None:
+# 			validation_radius = float(branch_data.radius) if branch_data.radius else 100.0
+
+# 		# Validate distance
+# 		if distance > validation_radius:
+# 			frappe.throw(
+# 				_("You are {0:.0f} meters away from the branch. Maximum allowed distance is {1:.0f} meters")
+# 				.format(distance, validation_radius)
+# 			)
+
+# 	except Exception as e:
+# 		if "You are" in str(e) or "Branch" in str(e):
+# 			raise
+# 		frappe.log_error(f"Error validating employee location: {str(e)}")
+# 		frappe.throw(_("Failed to validate location. Please try again"))
+
+
 def _validate_employee_location(
-	latitude: float,
-	longitude: float,
-	branch_name: str,
-	override_radius: Optional[float] = None
+    latitude: float,
+    longitude: float,
+    branch_name: str,
+    override_radius: Optional[float] = None
 ) -> None:
-	"""Validate employee location against branch coordinates.
+    """Validate employee location against branch coordinates.
 
-	Args:
-		latitude: Employee latitude
-		longitude: Employee longitude
-		branch_name: Branch name
-		override_radius: Override radius for validation
+    Args:
+        latitude: Employee latitude
+        longitude: Employee longitude
+        branch_name: Branch name
+        override_radius: Override radius for validation
 
-	Raises:
-		frappe.ValidationError: If location validation fails
-	"""
-	try:
-		# Get branch location data
-		branch_data = frappe.db.get_value(
-			"Branch",
-			branch_name,
-			["latitude", "longitude", "radius"],
-			as_dict=True
-		)
+    Raises:
+        frappe.ValidationError: If location validation fails
+    """
+    try:
+        # Get branch location data
+        branch_data = frappe.db.get_value(
+            "Branch",
+            branch_name,
+            ["custom_latitude", "custom_longitude", "custom_radius"],
+            as_dict=True
+        )
 
-		if not branch_data:
-			frappe.throw(_("Branch details not found for: {0}").format(branch_name))
+        if not branch_data:
+            frappe.throw(_("Branch details not found for: {0}").format(branch_name))
 
-		# Validate branch has location data
-		if not branch_data.latitude or not branch_data.longitude:
-			frappe.throw(
-				_("Branch {0} does not have location coordinates configured").format(branch_name)
-			)
+        # If radius is 0 or empty, allow the location to pass without validation
+        if not branch_data.custom_radius or float(branch_data.custom_radius) == 0:
+            return
 
-		# Calculate distance
-		branch_lat = float(branch_data.latitude)
-		branch_lon = float(branch_data.longitude)
-		distance = _haversine(branch_lat, branch_lon, latitude, longitude)
+        # Calculate distance
+        branch_lat = float(branch_data.custom_latitude)
+        branch_lon = float(branch_data.custom_longitude)
+        distance = _haversine(branch_lat, branch_lon, latitude, longitude)
 
-		# Determine radius to use
-		validation_radius = override_radius
-		if validation_radius is None:
-			validation_radius = float(branch_data.radius) if branch_data.radius else 100.0
+        # Determine radius to use
+        validation_radius = override_radius
+        if validation_radius is None:
+            validation_radius = float(branch_data.radius) if branch_data.radius else 100.0
 
-		# Validate distance
-		if distance > validation_radius:
-			frappe.throw(
-				_("You are {0:.0f} meters away from the branch. Maximum allowed distance is {1:.0f} meters")
-				.format(distance, validation_radius)
-			)
+        # Validate distance
+        if distance > validation_radius:
+            frappe.throw(
+                _("You are {0:.0f} meters away from the branch. Maximum allowed distance is {1:.0f} meters")
+                .format(distance, validation_radius)
+            )
 
-	except Exception as e:
-		if "You are" in str(e) or "Branch" in str(e):
-			raise
-		frappe.log_error(f"Error validating employee location: {str(e)}")
-		frappe.throw(_("Failed to validate location. Please try again"))
+    except Exception as e:
+        if "You are" in str(e) or "Branch" in str(e):
+            raise
+        frappe.log_error(f"Error validating employee location: {str(e)}")
+        frappe.throw(_("Failed to validate location. Please try again"))
+
+
 
 
 def _determine_log_type(employee_id: str) -> tuple:
