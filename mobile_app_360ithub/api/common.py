@@ -7,20 +7,20 @@ import json
 
 
 
-@frappe.whitelist()  
-def get_permitted_doctypes(user=None):  
-    if not user:  
-        user = frappe.session.user  
-      
-    user_perms = frappe.utils.user.UserPermissions(user)  
-    user_perms.build_permissions()  
-      
-    return {  
-        "can_read": user_perms.can_read,  
-        "can_write": user_perms.can_write,  
-        "can_create": user_perms.can_create,  
-        "can_delete": user_perms.can_delete,  
-        # Add other permission types as needed  
+@frappe.whitelist()
+def get_permitted_doctypes(user=None):
+    if not user:
+        user = frappe.session.user
+
+    user_perms = frappe.utils.user.UserPermissions(user)
+    user_perms.build_permissions()
+
+    return {
+        "can_read": user_perms.can_read,
+        "can_write": user_perms.can_write,
+        "can_create": user_perms.can_create,
+        "can_delete": user_perms.can_delete,
+        # Add other permission types as needed
     }
 
 
@@ -28,8 +28,59 @@ def get_permitted_doctypes(user=None):
 
 
 
+def _normalize_filters(f):
+    """
+    Normalize filters into the standard Frappe list-of-triplets format.
+    Accepts dict | list | None. Throws on invalid formats.
+
+    Examples of normalized output:
+    - {"status": "Open"} -> [["status", "=", "Open"]]
+    - [["status", "=", "Open"]] -> unchanged
+    - ["status", "=", "Open"] -> [["status", "=", "Open"]]
+    """
+    if f is None:
+        return []
+
+    # Strings are not acceptable at this stage (JSON parsing should have converted them)
+    if isinstance(f, str):
+        frappe.throw(_(f"Invalid filters format: expected dict or list of 3-element conditions; got {type(f).__name__}"))
+
+    if isinstance(f, dict):
+        out = []
+        for key, value in f.items():
+            if isinstance(value, list) and len(value) >= 2:
+                # e.g. [">", 100] or ["in", [1,2,3]]
+                operator = value[0]
+                filter_value = value[1]
+                out.append([key, operator, filter_value])
+            else:
+                out.append([key, "=", value])
+        return out
+
+    if isinstance(f, list):
+        if not f:
+            return []
+
+        # Already a list of conditions: [[field, op, val], ...]
+        if isinstance(f[0], list):
+            normalized = []
+            for cond in f:
+                if not (isinstance(cond, list) and len(cond) == 3):
+                    frappe.throw(_(f"Invalid filters format: each condition must be a 3-element list; got {cond}"))
+                normalized.append(cond)
+            return normalized
+
+        # Single condition represented as a list: [field, op, val]
+        if len(f) == 3:
+            return [f]
+
+        frappe.throw(_(f"Invalid filters format: expected list of 3-element conditions; got a list of length {len(f)}"))
+
+    # Unsupported type
+    frappe.throw(_(f"Invalid filters format: expected dict or list; got {type(f).__name__}"))
+
 @frappe.whitelist()
-def get_doc_with_filters(doctype, filters=None, fields=None, limit=20, order_by=None, group_by=None, start=0):
+def get_doc_with_filters(doctype, filters=None, or_filters=None, fields=None, limit=20, order_by=None, group_by=None, start=0):
     """Get a list of documents with filters, optimized for REST API usage.
 
     This function mirrors the powerful querying capabilities of `frappe.desk.reportview.get_list`
@@ -42,6 +93,14 @@ def get_doc_with_filters(doctype, filters=None, fields=None, limit=20, order_by=
             - A list of lists (standard Frappe format): `[["status", "=", "Open"]]`
             - A dictionary: `{"status": "Open", "priority": "High"}`
             - A JSON string representation of a list or dict.
+            Defaults to None.
+        or_filters (list | dict | str, optional): OR filters to apply. Can be:
+            - A list of lists (standard Frappe format): `[["first_name", "like", "%John%"], ["mobile_no", "like", "%123%"]]`
+            - A dictionary: `{"first_name": "John", "last_name": "Doe"}`
+            - A JSON string representation of a list or dict.
+            When both `filters` and `or_filters` are present, the query becomes: `filters AND (any of or_filters)`.
+            Example: `filters={"status": "Active"}` and `or_filters=[["first_name", "like", "%John%"], ["mobile_no", "like", "%123%"]]`
+            will return records where status is Active AND (first_name contains John OR mobile_no contains 123).
             Defaults to None.
         fields (list, optional): Fields to fetch. Defaults to `['*']`.
         limit (int, optional): Number of records to return. Defaults to 10.
@@ -57,6 +116,7 @@ def get_doc_with_filters(doctype, filters=None, fields=None, limit=20, order_by=
     args = frappe._dict({
         'doctype': doctype,
         'filters': filters or [],
+        'or_filters': or_filters or [],
         'fields': fields or ['*'],
         'limit_page_length': limit,
         'limit_start': start,
@@ -71,36 +131,24 @@ def get_doc_with_filters(doctype, filters=None, fields=None, limit=20, order_by=
         except (ValueError, TypeError):
             pass  # If parsing fails, use as-is
 
-    # Update args with parsed filters
-    args['filters'] = filters or []
+    # Update local variable with parsed filters; normalization/validation will follow
+    parsed_filters = filters
 
-    # Handle different filter formats
-    if isinstance(args.filters, dict):
-        # Convert dict filters to standard Frappe list format
-        filter_list = []
-        for key, value in args.filters.items():
-            if isinstance(value, list) and len(value) >= 2:
-                # Handle complex filters like ['>', 100] or ['in', [1,2,3]]
-                operator = value[0]
-                filter_value = value[1]
-                filter_list.append([key, operator, filter_value])
-            else:
-                # Simple equality filter
-                filter_list.append([key, '=', value])
-        args.filters = filter_list
-    elif isinstance(args.filters, list):
-        # Check if it's already in proper 3-element format like [["field", "operator", value]]
-        # If so, keep as is. This handles cases like [["exp_end_date", "Timespan", tomorrow]]
-        if args.filters and isinstance(args.filters[0], list) and len(args.filters[0]) == 3:
-            # Already in proper format, keep as is
-            pass
-        elif args.filters and not isinstance(args.filters[0], list):
-            # Single filter condition, ensure it's properly wrapped
-            if len(args.filters) == 3:
-                args.filters = [args.filters]  # Wrap single condition in list
-    else:
-        # Ensure filters is always a list
-        args.filters = [args.filters] if args.filters else []
+    # Parse or_filters JSON strings (same logic as filters)
+    if isinstance(or_filters, str):
+        try:
+            or_filters = json.loads(or_filters)
+        except (ValueError, TypeError):
+            pass  # If parsing fails, use as-is
+
+    # Update local variable with parsed or_filters; normalization/validation will follow
+    parsed_or_filters = or_filters
+
+    # Validate and normalize filters and or_filters using helper
+    args['filters'] = _normalize_filters(parsed_filters)
+    args['or_filters'] = _normalize_filters(parsed_or_filters)
+
+    # Both filters and or_filters are now properly formatted for DatabaseQuery
 
     # Filters are now properly formatted for DatabaseQuery
 
