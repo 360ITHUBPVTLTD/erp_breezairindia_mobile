@@ -141,7 +141,11 @@ doc_events = {
  	"Comment": {
  		"after_insert": "mobile_app_360ithub.task_comments.publish_task_comment_event",
 		"on_trash": "mobile_app_360ithub.task_comments.delete_task_comment_event"
- 	}
+ 	},
+    "Task": {
+        "after_insert": "mobile_app_360ithub.task_hooks.task_after_insert",
+        "before_save": "mobile_app_360ithub.task_hooks.task_before_save",
+    }
 }
 
 # Scheduled Tasks
