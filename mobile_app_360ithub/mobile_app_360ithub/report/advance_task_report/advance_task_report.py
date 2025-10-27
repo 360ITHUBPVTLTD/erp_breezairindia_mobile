@@ -18,8 +18,9 @@ def get_columns():
         {"label": "Type", "fieldname": "type", "fieldtype": "Data", "width": 120},
         {"label": "Expected Start Date", "fieldname": "exp_start_date", "fieldtype": "Date", "width": 130},
         {"label": "Expected End Date", "fieldname": "exp_end_date", "fieldtype": "Date", "width": 130},
-        {"label": "Progress", "fieldname": "progress", "fieldtype": "Int", "width": 90},
-        {"label": "Project", "fieldname": "project", "fieldtype": "Link", "options": "Project", "width": 150},
+		{"label": "Description", "fieldname": "description", "fieldtype": "Text", "width": 200},
+        # {"label": "Progress", "fieldname": "progress", "fieldtype": "Int", "width": 90},
+        # {"label": "Project", "fieldname": "project", "fieldtype": "Link", "options": "Project", "width": 150},
     ]
 
 
@@ -63,7 +64,7 @@ def get_data(filters):
 
     query = f"""
         SELECT
-            name, subject, task_owner, status, priority, type,
+            name, subject, task_owner, status, priority, type,description,
              exp_end_date AS exp_end_date,
             progress, project
         FROM `tabTask`
