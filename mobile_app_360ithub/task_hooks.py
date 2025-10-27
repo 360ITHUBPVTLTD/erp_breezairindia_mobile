@@ -15,13 +15,13 @@ def task_before_save(doc, method):
             downgrade_old_owner_share(doc.name, old_owner)
 
             # ✅ Share with new owner (full rights)
-            frappe.enqueue(share_task_with_owner, docname=doc.name, owner=doc.task_owner)
+            share_task_with_owner(docname=doc.name, owner=doc.task_owner)
 
 
 def task_after_insert(doc, method):
     """After insert — share with the new owner if set."""
     if doc.task_owner:
-        frappe.enqueue(share_task_with_owner, docname=doc.name, owner=doc.task_owner)
+        share_task_with_owner(docname=doc.name, owner=doc.task_owner)
 
 
 def downgrade_old_owner_share(docname, old_owner):
