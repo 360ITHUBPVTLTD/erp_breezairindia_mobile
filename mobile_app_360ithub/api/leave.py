@@ -10,44 +10,48 @@ from hrms.hr.report.employee_leave_balance.employee_leave_balance import (
 )
 
 
+import frappe
+from frappe import _
+from frappe.utils import getdate, nowdate, get_first_day, get_last_day
+from typing import List, Dict, Any, Optional
+
 @frappe.whitelist()
 def get_leave_data(year: Optional[int] = None) -> List[Dict[str, Any]]:
-	"""Get leave data for the current employee for a specific year.
+    """Get leave data for the current employee for a specific year."""
+    try:
+        current_user = frappe.session.user
+        if not current_user or current_user == "Guest":
+            frappe.throw(_("No active user session found"), frappe.PermissionError)
 
-	Args:
-		year (Optional[int]): Year to fetch leave data for. Defaults to current year.
+        # 1. Handle Year Logic
+        if not year:
+            year = getdate(nowdate()).year
+        
+        try:
+            year = int(year)
+        except (ValueError, TypeError):
+            frappe.throw(_("Invalid year provided: {0}").format(year))
 
-	Returns:
-		List[Dict[str, Any]]: List of leave data dictionaries
-	"""
-	try:
-		current_user = frappe.session.user
-		if not current_user:
-			frappe.throw(_("No active user session found"))
+        # 2. Calculate date range as STRINGS
+        # Using string formatting ensures we meet the 'str' requirement of the utility function
+        from_date = f"{year}-01-01"
+        to_date = f"{year}-12-31"
 
-		# Get current year if not provided
-		if not year:
-			year = getdate(nowdate()).year
+        # 3. Get employee data
+        # Ensure your helper function get_employee_by_user is imported
+        employee_data = get_employee_by_user(current_user)
+        if not employee_data:
+            frappe.throw(_("Employee data not found for current user"))
 
-		# Validate year
-		if not isinstance(year, int) or year < 1900 or year > 2100:
-			frappe.throw(_("Invalid year provided: {0}").format(year))
+        # 4. Call utility function
+        # We pass strings "2025-01-01" and "2025-12-31" instead of date objects
+        return get_employee_leave_data([employee_data], to_date, from_date)
 
-		# Calculate date range for the year
-		from_date = get_first_day(f"{year}-01-01")
-		to_date = get_last_day(f"{year}-12-31")
-
-		# Get employee data
-		employee_data = get_employee_by_user(current_user)
-		if not employee_data:
-			frappe.throw(_("Employee data not found for current user"))
-
-		return get_employee_leave_data([employee_data], to_date, from_date)
-
-	except Exception as e:
-		frappe.log_error(f"Error fetching leave data: {str(e)}")
-		frappe.throw(_("Failed to fetch leave data {0}").format(str(e)))
-
+    except frappe.ValidationError:
+        raise
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), _("Leave Data Fetch Error"))
+        frappe.throw(_("Failed to fetch leave data: {0}").format(str(e)))
 @frappe.whitelist()
 def get_employee_leave_data(
 	employees: List[Dict], to_date: str, from_date: str
